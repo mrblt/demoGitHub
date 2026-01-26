@@ -1,9 +1,16 @@
 #include <Arduino.h>
 
-void setup() {
+void setup()
+{
   // put your setup code here, to run once:
 }
 
-void loop() {
-  // put your main code here, to run repeatedly:
+void loop()
+{
+  int a = 0;
+  for (i = 0; i < 10; i++)
+  {
+    Serial.print(i); // put your main code here, to run repeatedly:
+  }
 }
+
