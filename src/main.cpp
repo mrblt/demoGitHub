@@ -11,6 +11,7 @@ void loop()
   for (i = 0; i < 10; i++)
   {
     Serial.print(i); // put your main code here, to run repeatedly:
+    Serial.print("apppppppppppapaappapapapapapaaaaa"); 
   }
 }
 
