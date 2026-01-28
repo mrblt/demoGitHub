@@ -1,49 +1,51 @@
-
 #include <Arduino.h>
-TaskHandle_t hMaTache1=NULL;
-void maTache1(void *parametres)
+int led=2;
+void tachePeriodique(void *pvParameters)
 {
- int i = 0;
- while (1) // boucle infinie
+
+ TickType_t xLastWakeTime;
+ double x = 0, y = 0;
+ // Lecture du nombre de ticks quand la tâche débute
+ xLastWakeTime = xTaskGetTickCount();
+ while (1)
  {
- Serial.printf("maTache1 %4d\n", i++);
- delay(500);
+    digitalWrite(led,HIGH);
+ TickType_t debCalcul = xTaskGetTickCount();
+ // Des calculs pour que la tâche occupe le processeur
+ int nbTour = 3000 + rand()%3000;
+ for (int i = 0; i < nbTour; i++) {
+ double xn = sin(x) + cos(y);
+ double yn = cos(x) + sin(y);
+ double d = sqrt(xn * xn + yn * yn);
+
+ if (d == 0) {
+ x = 0;
+ y = 0;
+ } else {
+ x = xn / d;
+ y = yn / d;
  }
-}
-TaskHandle_t hMaTache2=NULL;
-void maTache2(void *parametres)
-{
- int i = 0;
- while (1) // boucle infinie
- {
- Serial.printf("maTache2 %4d\n", i++);
- delay(2000);
+ }
+ 
+ TickType_t finCalcul = xTaskGetTickCount();
+ Serial.printf("Temps de calcul = %u\n", finCalcul - debCalcul);
+ // Endort la tâche pendant le temps restant par rapport au réveil,
+ // ici 200ms, donc la tâche s'effectue toutes les 200ms
+ digitalWrite(led,LOW);
+ vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(200)); 
  }
 }
 void setup()
 {
  Serial.begin(115200);
- while (!Serial);
- Serial.printf("Départ\n");
- xTaskCreate(maTache1,"Ma tâche 1",10000, NULL, 1,&hMaTache1); 
- xTaskCreate(maTache2,"Ma tâche 2",10000,NULL,1,&hMaTache2);
-
+ Serial.printf("Initialisation\n");
+ // Création de la tâche périodique
+ xTaskCreate(tachePeriodique, "Tâche périodique", 10000, NULL, 2, NULL);
+ pinMode(led,OUTPUT);
 }
 void loop()
 {
  static int i = 0;
- Serial.printf("Loop %4d\n", i++);
-  if(i==6)
- {
-  vTaskSuspend(hMaTache1);
- }
- if (i>>11)
- {
-  vTaskDelete(hMaTache2);
- }
- if (i==16)
- {
-  vTaskResume(hMaTache1);
- }
+ Serial.printf("Boucle principale : %d\n", i++);
  delay(1000);
 }
