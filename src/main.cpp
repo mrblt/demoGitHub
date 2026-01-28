@@ -7,14 +7,6 @@ void maTache1(void *parametres)
  while (1) // boucle infinie
  {
  Serial.printf("maTache1 %4d\n", i++);
- if(i<5)
- {
-  vTaskSuspend(hMaTache1);
- }
-  else if(i<15)
- {
-  vTaskResume(hMaTache1);
- }
  delay(500);
  }
 }
@@ -25,10 +17,6 @@ void maTache2(void *parametres)
  while (1) // boucle infinie
  {
  Serial.printf("maTache2 %4d\n", i++);
- if(i<10)
- {
-  vTaskDelete(hMaTache2);
- }
  delay(2000);
  }
 }
@@ -45,5 +33,17 @@ void loop()
 {
  static int i = 0;
  Serial.printf("Loop %4d\n", i++);
+  if(i==6)
+ {
+  vTaskSuspend(hMaTache1);
+ }
+ if (i>>11)
+ {
+  vTaskDelete(hMaTache2);
+ }
+ if (i==16)
+ {
+  vTaskResume(hMaTache1);
+ }
  delay(1000);
 }
