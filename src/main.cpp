@@ -1,5 +1,37 @@
-#include <Arduino.h>
+/*!
+ *  @file Adafruit_MPU6050.h
+ *
+ *  I2C Driver for MPU6050 6-DoF Accelerometer and Gyro
+ *
+ *  This is a library for the Adafruit MPU6050 breakout:
+ *  https://www.adafruit.com/products/3886
+ *
+ *  Adafruit invests time and resources providing this open source code,
+ *  please support Adafruit and open-source hardware by purchasing products from
+ *  Adafruit!
+ *
+ *
+ *  BSD license (see license.txt)
+ */
+
+
+
+
+
+
+#include "Arduino.h"
+#include <Adafruit_Sensor.h>
+#include <Wire.h>
 #include <String.h>
+#include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
+
+
+Adafruit_MPU6050 mpu;
+
+/*#define MPU6050_I2CADDR_DEFAULT 0x68 ///< MPU6050 default i2c address w/ AD0 low
+#define MPU6050_DEVICE_ID 0x98 // 0x68       ///< The correct MPU6050_WHO_AM_I value */
+
 
 char FlagCalcul = 0;
 float Ve, Vs = 0;
@@ -41,6 +73,18 @@ void setup()
   // put your setup code here, to run once:
   Serial.begin(115200);
   Serial.printf("Bonjour \n\r");
+  Wire.begin();
+  if (!mpu.begin())
+  {
+    Serial.println("Sensor init failed");
+    while (1){}
+      
+  }
+  Serial.println("Found a MPU-6050 sensor");
+mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+  mpu.setGyroRange(MPU6050_RANGE_2000_DEG);
+  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+
 
   xTaskCreate(
       controle,   // nom de la fonction
@@ -59,7 +103,7 @@ void setup()
       NULL   // descripteur
   );
 
-  // calcul coeff filtre (voir demonstration sur la diapo ihm)
+  // calcul coeff filtre
   A = 1 / (1 + Tau / Te);
   B = Tau / Te * A;
 }
@@ -68,58 +112,80 @@ void reception(char ch)
 {
 
   static int i = 0;
-  static String chaine = ""; //espace et string pour garder la valeur de la variable à la fin 
-  String commande;           //espace et string pour garder la commande à la fin
-  String valeur;             //espace et string pour garder la valeur à la fin
-  int index, length;         //index est la position de l'espace dans la chaine de caractère, length pour la longueur de la chaine
+  static String chaine = "";
+  String commande;
+  String valeur;
+  int index, length;
 
-  if ((ch == 13) or (ch == 10)) // si on reçoit un retour chariot ou un saut de ligne
+  if ((ch == 13) or (ch == 10))
   {
-    index = chaine.indexOf(' '); // on cherche la position de l'espace dans la chaine
-    length = chaine.length();     // on cherche la longueur de la chaine
-    if (index == -1) // si pas d'espace dans la chaine exemple BO ou BF dans le terminal 
+    index = chaine.indexOf(' ');
+    length = chaine.length();
+    if (index == -1)
     {
-      commande = chaine; // on met toute la chaine dans commande 
-      valeur = ""; 
+      commande = chaine;
+      valeur = "";
     }
     else
     {
-      commande = chaine.substring(0, index); // on met dans commande la partie avant l'espace
-      valeur = chaine.substring(index + 1, length); // on met dans valeur la partie après l'espace
+      commande = chaine.substring(0, index);
+      valeur = chaine.substring(index + 1, length);
     }
 
-    if (commande == "Tau") // si la commande est Tau
+    if (commande == "Tau")
     {
-      Tau = valeur.toFloat(); // on convertit la valeur en float et on la stocke dans Tau
-      
+      Tau = valeur.toFloat();
       // calcul coeff filtre
       A = 1 / (1 + Tau / Te);
       B = Tau / Te * A;
     }
-    if (commande == "Te") // si la commande est Te
+    if (commande == "Te")
     {
-      Te = valeur.toInt(); // on convertit la valeur en int et on la stocke dans Te
-      
-      // recalcul des coefficients du filtre
-      A = 1 / (1 + Tau / Te); 
-      B = Tau / Te * A; 
+      Te = valeur.toInt();
+      A = 1 / (1 + Tau / Te);
+      B = Tau / Te * A;
     }
 
-    chaine = ""; // on vide la chaine pour la prochaine commande
+    chaine = "";
   }
   else
   {
-    chaine += ch; // on ajoute le caractère reçu à la chaine
+    chaine += ch;
   }
 }
 
 void loop()
 {
-  if (FlagCalcul == 1) // si le drapeau de calcul est levé 
+  if (FlagCalcul == 1)
   {
-    Serial.printf("%lf %lf \n", Ve, Vs); // on affiche les valeurs de Ve et Vs
+    Serial.printf("%f %f \n", Ve, Vs);
+    sensors_event_t a, g, temp;
+    mpu.getEvent(&a, &g, &temp);
 
-    FlagCalcul = 0;   // on baisse le drapeau de calcul (donc on le met à 0)
+     Serial.print("Acceleration X: ");
+  Serial.print(a.acceleration.x);
+  Serial.print(", Y: ");
+  Serial.print(a.acceleration.y);
+  Serial.print(", Z: ");
+  Serial.print(a.acceleration.z);
+  Serial.println(" m/s^2");
+
+  Serial.print("Rotation X: ");
+  Serial.print(g.gyro.x);
+  Serial.print(", Y: ");
+  Serial.print(g.gyro.y);
+  Serial.print(", Z: ");
+  Serial.print(g.gyro.z);
+  Serial.println(" rad/s");
+
+  Serial.print("Temperature: ");
+  Serial.print(temp.temperature);
+  Serial.println(" degC");
+
+  Serial.println("");
+  delay(500);
+
+    FlagCalcul = 0;
   }
 }
 
@@ -127,6 +193,6 @@ void serialEvent()
 {
   while (Serial.available() > 0) // tant qu'il y a des caractères à lire
   {
-    reception(Serial.read()); // on lit le caractère et on l'envoie à la fonction de réception
+    reception(Serial.read());
   }
 }
