@@ -29,15 +29,18 @@
 
 Adafruit_MPU6050 mpu;
 
-/*#define MPU6050_I2CADDR_DEFAULT 0x68 ///< MPU6050 default i2c address w/ AD0 low
-#define MPU6050_DEVICE_ID 0x98 // 0x68       ///< The correct MPU6050_WHO_AM_I value */git config --global user.email "you@example.com"
-  git config --global user.name "Your Name"
 
 
 char FlagCalcul = 0;
 float Ve, Vs = 0;
 float Te = 10;    // période d'échantillonage en ms
-float Tau = 1000; // constante de temps du filtre en ms
+float Tau = 200; // constante de temps du filtre en ms
+float theta_gyro;
+float theta_filtre;
+float theta_W;
+float theta_final;
+
+sensors_event_t a, g, temp;
 
 // coefficient du filtre
 float A, B;
@@ -49,7 +52,12 @@ void controle(void *parameters)
   while (1)
   {
 
-    Vs = A * Ve + B * Vs;
+     
+    mpu.getEvent(&a, &g, &temp);
+    theta_gyro = atan2(a.acceleration.y, a.acceleration.x) * 180 / PI;
+    theta_filtre= A * theta_gyro + B * theta_filtre;
+    theta_W = A * Tau / 1000 * g.gyro.z + B * theta_W;
+    theta_final = theta_W + theta_filtre;
 
     FlagCalcul = 1;
     vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(Te));
@@ -157,13 +165,16 @@ void reception(char ch)
 
 void loop()
 {
+  
   if (FlagCalcul == 1)
   {
-    Serial.printf("%f %f \n", Ve, Vs);
-    sensors_event_t a, g, temp;
-    mpu.getEvent(&a, &g, &temp);
+   
 
-     Serial.print("Acceleration X: ");
+    Serial.printf("%lf %lf %lf %lf", theta_gyro, theta_filtre, -g.gyro.z,theta_final);
+    
+
+/*
+  Serial.print("Acceleration X: ");
   Serial.print(a.acceleration.x);
   Serial.print(", Y: ");
   Serial.print(a.acceleration.y);
@@ -178,13 +189,14 @@ void loop()
   Serial.print(", Z: ");
   Serial.print(g.gyro.z);
   Serial.println(" rad/s");
+*/
 
-  Serial.print("Temperature: ");
+
+ /* Serial.print("Temperature: ");
   Serial.print(temp.temperature);
-  Serial.println(" degC");
+  Serial.println(" degC");*/
 
   Serial.println("");
-  delay(500);
 
     FlagCalcul = 0;
   }
