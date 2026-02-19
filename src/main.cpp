@@ -14,11 +14,6 @@
  *  BSD license (see license.txt)
  */
 
-
-
-
-
-
 #include "Arduino.h"
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
@@ -26,19 +21,26 @@
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 
-
 Adafruit_MPU6050 mpu;
-
-
 
 char FlagCalcul = 0;
 float Ve, Vs = 0;
-float Te = 10;    // période d'échantillonage en ms
+float Te = 10;   // période d'échantillonage en ms
 float Tau = 200; // constante de temps du filtre en ms
 float theta_gyro;
 float theta_filtre;
 float theta_W;
 float theta_final;
+int Moteur_Davant = 18;
+int Moteur_Darriere = 17;
+int Moteur_Gavant = 16;
+int Moteur_Garriere = 4;
+int freq=20000;
+int resolution = 10;
+int canal0=0;
+int canal1=1;
+int canal2=2;
+int canal3=3;
 
 sensors_event_t a, g, temp;
 
@@ -52,15 +54,22 @@ void controle(void *parameters)
   while (1)
   {
 
-     
     mpu.getEvent(&a, &g, &temp);
     theta_gyro = atan2(a.acceleration.y, a.acceleration.x) * 180 / PI;
-    theta_filtre= A * theta_gyro + B * theta_filtre;
+    theta_filtre = A * theta_gyro + B * theta_filtre;
     theta_W = A * Tau / 1000 * g.gyro.z + B * theta_W;
     theta_final = theta_W + theta_filtre;
 
     FlagCalcul = 1;
     vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(Te));
+
+    //moteur Droit
+    ledcWrite(canal0, 0);
+    ledcWrite(canal1, 0);
+
+     //Moteur Gauche
+    ledcWrite(canal2, 0);
+    ledcWrite(canal3,0);
   }
 }
 
@@ -86,14 +95,29 @@ void setup()
   if (!mpu.begin())
   {
     Serial.println("Sensor init failed");
-    while (1){}
-      
+    while (1)
+    {
+    }
   }
   Serial.println("Found a MPU-6050 sensor");
-mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
+  mpu.setAccelerometerRange(MPU6050_RANGE_8_G);
   mpu.setGyroRange(MPU6050_RANGE_2000_DEG);
   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
 
+  ledcSetup(canal0, freq, resolution);
+  ledcAttachPin(Moteur_Davant,canal0 );
+  
+  ledcSetup(canal1, freq, resolution);
+  ledcAttachPin(Moteur_Darriere,canal1 );
+
+
+  ledcSetup(canal2, freq, resolution);
+  ledcAttachPin(Moteur_Gavant,canal2 );
+
+  ledcSetup(canal3, freq, resolution);
+  ledcAttachPin(Moteur_Garriere,canal3 );
+
+ 
 
   xTaskCreate(
       controle,   // nom de la fonction
@@ -165,38 +189,42 @@ void reception(char ch)
 
 void loop()
 {
-  
+
   if (FlagCalcul == 1)
   {
+
+    Serial.printf("%lf %lf %lf %lf", theta_gyro, theta_filtre, -g.gyro.z, theta_final);
+
+    /*
+      Serial.print("Acceleration X: ");
+      Serial.print(a.acceleration.x);
+      Serial.print(", Y: ");
+      Serial.print(a.acceleration.y);
+      Serial.print(", Z: ");
+      Serial.print(a.acceleration.z);
+      Serial.println(" m/s^2");
+
+      Serial.print("Rotation X: ");
+      Serial.print(g.gyro.x);
+      Serial.print(", Y: ");
+      Serial.print(g.gyro.y);
+      Serial.print(", Z: ");
+      Serial.print(g.gyro.z);
+      Serial.println(" rad/s");
+    */
+
+    /* Serial.print("Temperature: ");
+     Serial.print(temp.temperature);
+     Serial.println(" degC");*/
+    
    
 
-    Serial.printf("%lf %lf %lf %lf", theta_gyro, theta_filtre, -g.gyro.z,theta_final);
     
 
-/*
-  Serial.print("Acceleration X: ");
-  Serial.print(a.acceleration.x);
-  Serial.print(", Y: ");
-  Serial.print(a.acceleration.y);
-  Serial.print(", Z: ");
-  Serial.print(a.acceleration.z);
-  Serial.println(" m/s^2");
+  
 
-  Serial.print("Rotation X: ");
-  Serial.print(g.gyro.x);
-  Serial.print(", Y: ");
-  Serial.print(g.gyro.y);
-  Serial.print(", Z: ");
-  Serial.print(g.gyro.z);
-  Serial.println(" rad/s");
-*/
-
-
- /* Serial.print("Temperature: ");
-  Serial.print(temp.temperature);
-  Serial.println(" degC");*/
-
-  Serial.println("");
+    delay(2000);
+    Serial.println("");
 
     FlagCalcul = 0;
   }
